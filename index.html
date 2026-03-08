@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -9,7 +10,6 @@
     body { background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
     #container { position: relative; width: 100vw; height: 100vh; }
     video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
-    #bugCanvas { mix-blend-mode: screen; opacity: 0.85; }
     #btn {
       position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
       width: 70px; height: 70px; border-radius: 50%;
@@ -42,11 +42,8 @@
     const status = document.getElementById('status');
 
     let bugActive = false;
-    let frozenImageData = null;
-    let animFrame;
-    let glitchOffset = 0;
+    let frozenFrame = null;
 
-    // カメラ起動
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
       .then(stream => {
         video.srcObject = stream;
@@ -61,58 +58,51 @@
       });
 
     function loop() {
-      if (!bugActive) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      } else {
+      if (bugActive && frozenFrame) {
         applyBug();
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
-      animFrame = requestAnimationFrame(loop);
+      requestAnimationFrame(loop);
     }
 
     function applyBug() {
-      if (!frozenImageData) return;
-
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      glitchOffset = Math.random() * 40 - 20;
+      const offsetX = Math.random() * 40 - 20;
+      const offsetY = Math.random() * 10 - 5;
 
-      // 赤チャンネルをずらす
-      ctx.globalCompositeOperation = 'source-over';
+      // 赤っぽくずらす
       ctx.globalAlpha = 0.6;
-      ctx.drawImage(frozenFrame, glitchOffset, Math.random() * 10 - 5);
+      ctx.drawImage(frozenFrame, offsetX, offsetY);
 
-      // 緑チャンネル
+      // 緑っぽくずらす
       ctx.globalAlpha = 0.4;
-      ctx.drawImage(frozenFrame, -glitchOffset * 0.5, 0);
+      ctx.drawImage(frozenFrame, -offsetX * 0.5, 0);
 
-      // 青チャンネル
+      // 青っぽくずらす
       ctx.globalAlpha = 0.3;
-      ctx.drawImage(frozenFrame, glitchOffset * 0.3, -glitchOffset * 0.3);
+      ctx.drawImage(frozenFrame, offsetX * 0.3, -offsetX * 0.3);
 
-      // ランダムなスキャンライン
-      if (Math.random() > 0.7) {
+      // ランダムスキャンライン
+      if (Math.random() > 0.6) {
         const y = Math.random() * canvas.height;
-        const h = Math.random() * 20 + 2;
+        const h = Math.random() * 15 + 2;
         ctx.globalAlpha = 0.5;
-        ctx.globalCompositeOperation = 'source-over';
         ctx.drawImage(frozenFrame, 0, y, canvas.width, h, Math.random() * 30 - 15, y, canvas.width, h);
       }
 
       ctx.globalAlpha = 1.0;
-      ctx.globalCompositeOperation = 'source-over';
     }
-
-    let frozenFrame = null;
 
     btn.addEventListener('click', () => {
       if (!bugActive) {
-        // フレームを凍結
-        const tmpCanvas = document.createElement('canvas');
-        tmpCanvas.width = canvas.width;
-        tmpCanvas.height = canvas.height;
-        const tmpCtx = tmpCanvas.getContext('2d');
-        tmpCtx.drawImage(video, 0, 0, tmpCanvas.width, tmpCanvas.height);
-        frozenFrame = tmpCanvas;
+        // フレームを保存
+        const tmp = document.createElement('canvas');
+        tmp.width = canvas.width;
+        tmp.height = canvas.height;
+        tmp.getContext('2d').drawImage(video, 0, 0, tmp.width, tmp.height);
+        frozenFrame = tmp;
         bugActive = true;
         status.textContent = '⚡ バグ中... もう一度押すと解除';
       } else {
@@ -125,4 +115,3 @@
   </script>
 </body>
 </html>
-
