@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>バグカメラ</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+    #container { position: relative; width: 100vw; height: 100vh; }
+    video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+    #bugCanvas { mix-blend-mode: screen; opacity: 0.85; }
+    #btn {
+      position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+      width: 70px; height: 70px; border-radius: 50%;
+      background: white; border: 4px solid #aaa;
+      cursor: pointer; z-index: 10;
+      box-shadow: 0 0 20px rgba(255,255,255,0.5);
+    }
+    #btn:active { background: #ddd; }
+    #status {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      color: white; font-family: monospace; font-size: 14px;
+      background: rgba(0,0,0,0.5); padding: 4px 12px; border-radius: 20px;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="bugCanvas"></canvas>
+  </div>
+  <div id="status">📷 ボタンを押してバグを出す</div>
+  <button id="btn"></button>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('bugCanvas');
+    const ctx = canvas.getContext('2d');
+    const btn = document.getElementById('btn');
+    const status = document.getElementById('status');
+
+    let bugActive = false;
+    let frozenImageData = null;
+    let animFrame;
+    let glitchOffset = 0;
+
+    // カメラ起動
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      .then(stream => {
+        video.srcObject = stream;
+        video.onloadedmetadata = () => {
+          canvas.width = video.videoWidth || window.innerWidth;
+          canvas.height = video.videoHeight || window.innerHeight;
+          loop();
+        };
+      })
+      .catch(() => {
+        status.textContent = '⚠️ カメラのアクセスを許可してください';
+      });
+
+    function loop() {
+      if (!bugActive) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      } else {
+        applyBug();
+      }
+      animFrame = requestAnimationFrame(loop);
+    }
+
+    function applyBug() {
+      if (!frozenImageData) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      glitchOffset = Math.random() * 40 - 20;
+
+      // 赤チャンネルをずらす
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.6;
+      ctx.drawImage(frozenFrame, glitchOffset, Math.random() * 10 - 5);
+
+      // 緑チャンネル
+      ctx.globalAlpha = 0.4;
+      ctx.drawImage(frozenFrame, -glitchOffset * 0.5, 0);
+
+      // 青チャンネル
+      ctx.globalAlpha = 0.3;
+      ctx.drawImage(frozenFrame, glitchOffset * 0.3, -glitchOffset * 0.3);
+
+      // ランダムなスキャンライン
+      if (Math.random() > 0.7) {
+        const y = Math.random() * canvas.height;
+        const h = Math.random() * 20 + 2;
+        ctx.globalAlpha = 0.5;
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(frozenFrame, 0, y, canvas.width, h, Math.random() * 30 - 15, y, canvas.width, h);
+      }
+
+      ctx.globalAlpha = 1.0;
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    let frozenFrame = null;
+
+    btn.addEventListener('click', () => {
+      if (!bugActive) {
+        // フレームを凍結
+        const tmpCanvas = document.createElement('canvas');
+        tmpCanvas.width = canvas.width;
+        tmpCanvas.height = canvas.height;
+        const tmpCtx = tmpCanvas.getContext('2d');
+        tmpCtx.drawImage(video, 0, 0, tmpCanvas.width, tmpCanvas.height);
+        frozenFrame = tmpCanvas;
+        bugActive = true;
+        status.textContent = '⚡ バグ中... もう一度押すと解除';
+      } else {
+        bugActive = false;
+        frozenFrame = null;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        status.textContent = '📷 ボタンを押してバグを出す';
+      }
+    });
+  </script>
+</body>
+</html>
+
